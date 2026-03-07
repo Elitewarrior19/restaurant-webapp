@@ -1,0 +1,54 @@
+type User @table {
+  displayName: String!
+  email: String!
+  createdAt: Timestamp!
+  photoUrl: String
+  isRestaurantOwner: Boolean
+}
+
+type Restaurant @table {
+  name: String!
+  address: String!
+  city: String!
+  state: String!
+  zipCode: String!
+  cuisine: String!
+  phoneNumber: String!
+  createdAt: Timestamp!
+  description: String
+  website: String
+  openingHours: String
+  averageRating: Float
+  owner: User
+}
+
+type MenuItem @table {
+  name: String!
+  price: Float!
+  category: String!
+  createdAt: Timestamp!
+  description: String
+  imageUrl: String
+  restaurant: Restaurant
+}
+
+type Reservation @table {
+  reservationDate: Date!
+  reservationTime: String!
+  numberOfGuests: Int!
+  status: String!
+  createdAt: Timestamp!
+  specialRequests: String
+  user: User
+  restaurant: Restaurant
+}
+
+type Review @table {
+  rating: Int!
+  comment: String!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  imageUrl: String
+  user: User
+  restaurant: Restaurant
+}

@@ -1,0 +1,16 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/api/geocode/route": "app/api/geocode/route.js",
+  "/menu/[id]/page": "app/menu/[id]/page.js",
+  "/order/[orderId]/chat/page": "app/order/[orderId]/chat/page.js",
+  "/menu/page": "app/menu/page.js",
+  "/order/track/page": "app/order/track/page.js",
+  "/checkout/page": "app/checkout/page.js",
+  "/login/page": "app/login/page.js",
+  "/staff/delivery/page": "app/staff/delivery/page.js",
+  "/page": "app/page.js",
+  "/signup/page": "app/signup/page.js",
+  "/order/[orderId]/track/page": "app/order/[orderId]/track/page.js",
+  "/staff/kitchen/page": "app/staff/kitchen/page.js"
+}

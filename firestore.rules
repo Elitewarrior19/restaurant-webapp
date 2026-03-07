@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users: read own profile; create/update own doc (for signup/profile)
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // Menu items: public read; only authenticated users can write (admin enforced client-side)
+    match /menuItems/{itemId} {
+      allow read: if true;
+      allow create, update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
+    // Orders: authenticated users can create (checkout), read, update
+    match /orders/{orderId} {
+      allow read, create, update: if request.auth != null;
+      allow delete: if false;
+
+      // Order chat messages
+      match /messages/{messageId} {
+        allow read, create: if request.auth != null;
+      }
+    }
+
+    // Stock items: authenticated users can read; write (admin enforced client-side)
+    match /stockItems/{itemId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+  }
+}

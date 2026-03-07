@@ -1,0 +1,80 @@
+mutation CreateDemoData @transaction @auth(level: USER, insecureReason: "This is a seed mutation and should only be runnable by an authenticated user to populate the database.") {
+  user_insertMany(data: [
+    {
+      id: "b21e865f-618e-4a6c-9426-38202996d11b",
+      createdAt: "2024-01-01T10:00:00Z",
+      displayName: "Alice Smith",
+      email: "alice.smith@example.com",
+      isRestaurantOwner: true,
+      photoUrl: "https://example.com/alice.jpg"
+    },
+    {
+      id: "c87a5f6e-7b9d-4c3a-8e1f-2d4g5h6i7j8k",
+      createdAt: "2024-01-02T11:00:00Z",
+      displayName: "Bob Johnson",
+      email: "bob.johnson@example.com",
+      isRestaurantOwner: false,
+      photoUrl: "https://example.com/bob.jpg"
+    }
+  ])
+  restaurant_insertMany(data: [
+    {
+      id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+      owner: { id: "b21e865f-618e-4a6c-9426-38202996d11b" },
+      address: "123 Main St",
+      city: "Anytown",
+      cuisine: "Italian",
+      name: "Alice's Italian Eatery",
+      phoneNumber: "555-1234",
+      state: "CA",
+      zipCode: "90210",
+      createdAt: "2024-01-03T12:00:00Z",
+      description: "Authentic Italian cuisine in a cozy atmosphere.",
+      openingHours: "Mon-Sat: 11 AM - 10 PM",
+      website: "https://example.com/alice-eatery"
+    }
+  ])
+  menuItem_insertMany(data: [
+    {
+      restaurant: { id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" },
+      category: "Main Course",
+      createdAt: "2024-01-04T13:00:00Z",
+      description: "Classic spaghetti with rich marinara sauce.",
+      imageUrl: "https://example.com/spaghetti.jpg",
+      name: "Spaghetti Marinara",
+      price: 15.99
+    },
+    {
+      restaurant: { id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" },
+      category: "Appetizer",
+      createdAt: "2024-01-04T13:05:00Z",
+      description: "Crispy calamari with a lemon aioli.",
+      imageUrl: "https://example.com/calamari.jpg",
+      name: "Fried Calamari",
+      price: 12.50
+    }
+  ])
+  reservation_insertMany(data: [
+    {
+      restaurant: { id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" },
+      user: { id: "c87a5f6e-7b9d-4c3a-8e1f-2d4g5h6i7j8k" },
+      createdAt: "2024-01-05T14:00:00Z",
+      numberOfGuests: 2,
+      reservationDate: "2024-01-10",
+      reservationTime: "19:00",
+      specialRequests: "Table by the window",
+      status: "Confirmed"
+    }
+  ])
+  review_insertMany(data: [
+    {
+      restaurant: { id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" },
+      user: { id: "c87a5f6e-7b9d-4c3a-8e1f-2d4g5h6i7j8k" },
+      comment: "Absolutely delicious food and great service!",
+      createdAt: "2024-01-06T15:00:00Z",
+      rating: 5,
+      updatedAt: "2024-01-06T15:00:00Z",
+      imageUrl: "https://example.com/review-food.jpg"
+    }
+  ])
+}
