@@ -33,9 +33,9 @@ export function NavBar() {
 
       {user ? (
         <Link
-          href="/checkout"
+          href="/account"
           className="inline-flex h-9 items-center gap-2 rounded-full bg-deepGreen px-3 text-xs font-medium text-cream shadow-sm transition hover:bg-deepGreen-hover sm:text-sm"
-          aria-label="Account & checkout"
+          aria-label="Account"
         >
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-cream/10 text-[11px] font-semibold">
             {user.email?.[0]?.toUpperCase() ?? user.name?.[0] ?? "U"}

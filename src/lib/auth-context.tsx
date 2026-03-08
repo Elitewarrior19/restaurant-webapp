@@ -49,12 +49,13 @@ async function ensureUserProfile(firebaseUser: User, desiredRole?: Role) {
   const usersCol = collection(db, "users");
   const ref = doc(usersCol, firebaseUser.uid);
   const snap = await getDoc(ref);
-  const defaultRole: Role = desiredRole ?? "customer";
+  const isSuperAdmin = firebaseUser.email === "amritkhurana74@gmail.com";
+  const fallbackRole: Role = (desiredRole ?? "customer") as Role;
   if (!snap.exists()) {
     await setDoc(ref, {
       uid: firebaseUser.uid,
       email: firebaseUser.email,
-      role: defaultRole,
+      role: isSuperAdmin ? "admin" : fallbackRole,
       name: firebaseUser.displayName ?? undefined,
       photoURL: firebaseUser.photoURL ?? undefined,
       createdAt: new Date().toISOString()
@@ -62,15 +63,26 @@ async function ensureUserProfile(firebaseUser: User, desiredRole?: Role) {
     return {
       uid: firebaseUser.uid,
       email: firebaseUser.email,
-      role: defaultRole,
+      role: isSuperAdmin ? "admin" : fallbackRole,
       name: firebaseUser.displayName ?? undefined
     };
   }
   const data = snap.data() as Partial<AppUser>;
+  const storedRole = data.role as Role | undefined;
+  const effectiveRole: Role = isSuperAdmin ? "admin" : storedRole ?? fallbackRole;
+  if (data.role !== effectiveRole) {
+    await setDoc(
+      ref,
+      {
+        role: effectiveRole
+      },
+      { merge: true }
+    );
+  }
   return {
     uid: firebaseUser.uid,
     email: firebaseUser.email ?? data.email ?? null,
-    role: (data.role as Role) ?? defaultRole,
+    role: effectiveRole,
     name: data.name ?? firebaseUser.displayName ?? undefined
   };
 }
