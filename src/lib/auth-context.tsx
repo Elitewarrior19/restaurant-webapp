@@ -31,6 +31,8 @@ type AppUser = {
   email: string | null;
   role: Role;
   name?: string;
+  createdAt?: string;
+  lastLoginAt?: string;
 };
 
 type AuthContextValue = {
@@ -51,6 +53,7 @@ async function ensureUserProfile(firebaseUser: User, desiredRole?: Role) {
   const snap = await getDoc(ref);
   const isSuperAdmin = firebaseUser.email === "amritkhurana74@gmail.com";
   const fallbackRole: Role = (desiredRole ?? "customer") as Role;
+  const nowIso = new Date().toISOString();
   if (!snap.exists()) {
     await setDoc(ref, {
       uid: firebaseUser.uid,
@@ -58,32 +61,38 @@ async function ensureUserProfile(firebaseUser: User, desiredRole?: Role) {
       role: isSuperAdmin ? "admin" : fallbackRole,
       name: firebaseUser.displayName ?? undefined,
       photoURL: firebaseUser.photoURL ?? undefined,
-      createdAt: new Date().toISOString()
+      createdAt: nowIso,
+      lastLoginAt: nowIso
     });
     return {
       uid: firebaseUser.uid,
       email: firebaseUser.email,
       role: isSuperAdmin ? "admin" : fallbackRole,
-      name: firebaseUser.displayName ?? undefined
+      name: firebaseUser.displayName ?? undefined,
+      createdAt: nowIso,
+      lastLoginAt: nowIso
     };
   }
-  const data = snap.data() as Partial<AppUser>;
+  const data = snap.data() as Partial<AppUser> & {
+    createdAt?: string;
+    lastLoginAt?: string;
+  };
   const storedRole = data.role as Role | undefined;
   const effectiveRole: Role = isSuperAdmin ? "admin" : storedRole ?? fallbackRole;
+  const update: Partial<AppUser & { lastLoginAt: string }> = {
+    lastLoginAt: nowIso
+  };
   if (data.role !== effectiveRole) {
-    await setDoc(
-      ref,
-      {
-        role: effectiveRole
-      },
-      { merge: true }
-    );
+    update.role = effectiveRole;
   }
+  await setDoc(ref, update, { merge: true });
   return {
     uid: firebaseUser.uid,
     email: firebaseUser.email ?? data.email ?? null,
     role: effectiveRole,
-    name: data.name ?? firebaseUser.displayName ?? undefined
+    name: data.name ?? firebaseUser.displayName ?? undefined,
+    createdAt: data.createdAt,
+    lastLoginAt: nowIso
   };
 }
 

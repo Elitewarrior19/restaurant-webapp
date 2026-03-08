@@ -12,6 +12,14 @@ type OrderStats = {
   lastOrderAt?: string | null;
 };
 
+type RecentOrder = {
+  id: string;
+  createdAt?: string;
+  totalAmount?: number;
+  paymentMethod?: string;
+  paymentStatus?: string;
+};
+
 export default function AccountPage() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
@@ -20,6 +28,8 @@ export default function AccountPage() {
   const [stats, setStats] = useState<OrderStats>({ count: 0, lastOrderAt: null });
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [preferredPayment, setPreferredPayment] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -44,15 +54,52 @@ export default function AccountPage() {
         const q = query(ordersRef, where("userId", "==", user.uid));
         const snap = await getDocs(q);
         let lastOrderAt: string | null = null;
+        const list: RecentOrder[] = [];
+        const paymentCounts = new Map<string, number>();
+
         snap.forEach((d) => {
-          const data = d.data() as { createdAt?: string };
+          const data = d.data() as {
+            createdAt?: string;
+            totalAmount?: number;
+            paymentMethod?: string;
+            paymentStatus?: string;
+          };
           if (data.createdAt) {
             if (!lastOrderAt || data.createdAt > lastOrderAt) {
               lastOrderAt = data.createdAt;
             }
           }
+          list.push({
+            id: d.id,
+            createdAt: data.createdAt,
+            totalAmount: data.totalAmount,
+            paymentMethod: data.paymentMethod,
+            paymentStatus: data.paymentStatus
+          });
+          if (data.paymentMethod) {
+            paymentCounts.set(
+              data.paymentMethod,
+              (paymentCounts.get(data.paymentMethod) ?? 0) + 1
+            );
+          }
         });
+
+        list.sort(
+          (a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")
+        );
+
+        let topMethod: string | null = null;
+        let topCount = 0;
+        paymentCounts.forEach((count, method) => {
+          if (count > topCount) {
+            topCount = count;
+            topMethod = method;
+          }
+        });
+
         setStats({ count: snap.size, lastOrderAt });
+        setRecentOrders(list.slice(0, 3));
+        setPreferredPayment(topMethod);
       } catch (err) {
         console.error(err);
         setStatsError("Order history load nahi ho saki.");
@@ -156,19 +203,72 @@ export default function AccountPage() {
         ) : statsError ? (
           <p className="text-xs text-red-600">{statsError}</p>
         ) : (
-          <div className="space-y-2 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Total orders</span>
-              <span className="font-semibold text-charcoal">{stats.count}</span>
+          <div className="space-y-3 text-xs">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Total orders</span>
+                <span className="font-semibold text-charcoal">{stats.count}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Last order</span>
+                <span className="font-medium text-charcoal">
+                  {stats.lastOrderAt
+                    ? new Date(stats.lastOrderAt).toLocaleString()
+                    : "Abhi tak koi order nahi"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Preferred payment</span>
+                <span className="font-medium text-charcoal">
+                  {preferredPayment
+                    ? preferredPayment === "cod"
+                      ? "Cash on delivery"
+                      : preferredPayment === "jazzcash"
+                      ? "JazzCash"
+                      : "Easypaisa"
+                    : "Abhi tak clear nahi"}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Last order</span>
-              <span className="font-medium text-charcoal">
-                {stats.lastOrderAt
-                  ? new Date(stats.lastOrderAt).toLocaleString()
-                  : "Abhi tak koi order nahi"}
-              </span>
-            </div>
+            {recentOrders.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[11px] font-medium text-gray-700">Recent orders</p>
+                <ul className="space-y-1">
+                  {recentOrders.map((o) => (
+                    <li
+                      key={o.id}
+                      className="flex items-center justify-between rounded-lg bg-cream/60 px-3 py-1.5"
+                    >
+                      <div className="space-y-0.5">
+                        <span className="text-[11px] font-semibold text-charcoal">
+                          #{o.id.slice(-6)}
+                        </span>
+                        <span className="block text-[10px] text-gray-500">
+                          {o.createdAt
+                            ? new Date(o.createdAt).toLocaleString()
+                            : "Time unknown"}
+                        </span>
+                      </div>
+                      <div className="text-right text-[10px] text-gray-600">
+                        <div className="font-medium text-charcoal">
+                          ₹{(o.totalAmount ?? 0).toFixed(0)}
+                        </div>
+                        <div>
+                          {o.paymentMethod === "cod"
+                            ? "COD"
+                            : o.paymentMethod === "jazzcash"
+                            ? "JazzCash"
+                            : o.paymentMethod === "easypaisa"
+                            ? "Easypaisa"
+                            : "Payment"}
+                          {o.paymentStatus && ` • ${o.paymentStatus}`}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -179,6 +279,24 @@ export default function AccountPage() {
           Jab aap logout karte hain to is device se aapka session close ho jata hai. Dobara login karne ke liye email
           ya Google ka use karein.
         </p>
+        <div className="mt-2 space-y-1 text-xs text-gray-600">
+          <div className="flex items-center justify-between">
+            <span>Account created</span>
+            <span className="font-medium text-charcoal">
+              {user.createdAt
+                ? new Date(user.createdAt).toLocaleString()
+                : "Data unavailable"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Last login</span>
+            <span className="font-medium text-charcoal">
+              {user.lastLoginAt
+                ? new Date(user.lastLoginAt).toLocaleString()
+                : "Data unavailable"}
+            </span>
+          </div>
+        </div>
         <Button variant="secondary" onClick={handleLogout} className="w-full justify-center text-sm">
           Log out
         </Button>
