@@ -1,4 +1,5 @@
-const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "da3dmwxj9";
+const CLOUDINARY_CLOUD_NAME =
+  process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "dvmroy9e7";
 
 export function getCloudinaryCloudName() {
   return CLOUDINARY_CLOUD_NAME;

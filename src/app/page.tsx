@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
+import { getHeroImageUrl } from "@/lib/media";
 
 const CATEGORIES = [
   { name: "Pizza", href: "/menu?category=Pizza", emoji: "🍕" },
@@ -20,6 +21,7 @@ const CATEGORIES = [
 export default function HomePage() {
   const [lastOrders, setLastOrders] = useState<{ id: string; totalAmount?: number; createdAt?: string }[]>([]);
   const { user } = useAuth();
+  const heroImageUrl = getHeroImageUrl();
 
   useEffect(() => {
     if (!user) return;
@@ -42,6 +44,16 @@ export default function HomePage() {
     <div className="space-y-8">
       {/* Hero */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-saffron via-deepGreen to-emerald-700 shadow-lg">
+        {heroImageUrl && (
+          <div className="pointer-events-none absolute inset-0">
+            <img
+              src={heroImageUrl}
+              alt="Lala's Foods hero"
+              className="h-full w-full object-cover opacity-80"
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/20 to-black/70" />
+          </div>
+        )}
         <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
         <div className="pointer-events-none absolute -bottom-16 left-4 h-32 w-32 rounded-full bg-black/10 blur-2xl" />
         <div className="relative px-6 py-8 sm:py-10">
