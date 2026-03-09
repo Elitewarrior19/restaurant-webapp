@@ -3,9 +3,15 @@
 import Link from "next/link";
 import { doc, onSnapshot } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { getDb } from "@/lib/firebase";
 import { Button } from "@/components/ui/Button";
+
+type Location = {
+  lat: number;
+  lng: number;
+};
 
 type OrderDoc = {
   status: string;
@@ -13,7 +19,14 @@ type OrderDoc = {
   totalAmount?: number;
   deliveryAddress?: string | null;
   createdAt?: string;
+  location?: Location | null;
+  riderLocation?: Location | null;
 };
+
+const DynamicOrderMap = dynamic(
+  () => import("@/components/maps/OrderMap").then((m) => m.OrderMap),
+  { ssr: false }
+);
 
 const steps = [
   { key: "received", label: "Received" },
@@ -184,27 +197,15 @@ export default function OrderTrackByIdPage() {
         <p className="text-[11px] text-gray-600">
           {order.deliveryAddress ?? "Pickup order / address not set"}
         </p>
-        <div className="mt-2 overflow-hidden rounded-xl border border-gray-200">
-          <iframe
-            title="Delivery map"
-            src={`https://www.google.com/maps?q=${encodeURIComponent(
-              order.deliveryAddress ?? "Lala's Foods"
-            )}&output=embed`}
-            className="h-48 w-full border-0"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
+        <div className="mt-2 space-y-1">
+          <DynamicOrderMap
+            customerLocation={order.location ?? null}
+            riderLocation={order.riderLocation ?? null}
           />
+          <p className="text-[10px] text-gray-500">
+            Blue pin aapka address, hara dot rider ki current location (agar share ki ho).
+          </p>
         </div>
-        <a
-          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-            order.deliveryAddress ?? "Lala's Foods"
-          )}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-flex items-center text-[11px] font-medium text-saffron underline-offset-2 hover:underline"
-        >
-          Open in Google Maps
-        </a>
       </section>
 
       {/* Floating Chat Button */}

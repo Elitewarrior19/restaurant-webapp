@@ -23,6 +23,9 @@ type Order = {
   createdAt?: string;
   status?: string;
   deliveryId?: string | null;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  isCOD?: boolean;
 };
 
 type StockItem = {
@@ -37,6 +40,14 @@ type DeliveryUser = {
   uid: string;
   email?: string | null;
   role: string;
+};
+
+type AdminUser = {
+  id: string;
+  email?: string | null;
+  role?: string;
+  createdAt?: string;
+  lastLoginAt?: string;
 };
 
 type DemoMenuItem = {
@@ -201,13 +212,15 @@ export default function AdminDashboardPage() {
   const [menuPrice, setMenuPrice] = useState("");
   const [menuImageId, setMenuImageId] = useState<string | undefined>(undefined);
   const [creatingItem, setCreatingItem] = useState(false);
+  const [users, setUsers] = useState<AdminUser[]>([]);
 
   useEffect(() => {
     async function load() {
-      const [ordersSnap, stockSnap, deliverySnap] = await Promise.all([
+      const [ordersSnap, stockSnap, deliverySnap, usersSnap] = await Promise.all([
         getDocs(collection(db, "orders")),
         getDocs(collection(db, "stockItems")),
-        getDocs(query(collection(db, "users"), where("role", "==", "delivery")))
+        getDocs(query(collection(db, "users"), where("role", "==", "delivery"))),
+        getDocs(collection(db, "users"))
       ]);
       setOrders(
         ordersSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Order, "id">) }))
@@ -222,6 +235,12 @@ export default function AdminDashboardPage() {
         deliverySnap.docs.map((d) => ({
           id: d.id,
           ...(d.data() as Omit<DeliveryUser, "id">)
+        }))
+      );
+      setUsers(
+        usersSnap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<AdminUser, "id">)
         }))
       );
     }
@@ -399,6 +418,19 @@ export default function AdminDashboardPage() {
                     {o.status ?? "received"}
                   </div>
                 </div>
+                <div className="flex items-center justify-between text-[10px] text-gray-600">
+                  <span>
+                    Payment:{" "}
+                    {o.paymentMethod === "cod"
+                      ? "Cash on delivery"
+                      : o.paymentMethod === "jazzcash"
+                      ? "JazzCash"
+                      : o.paymentMethod === "easypaisa"
+                      ? "Easypaisa"
+                      : "Unknown"}
+                    {o.paymentStatus && ` • ${o.paymentStatus}`}
+                  </span>
+                </div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-[11px] text-gray-600">
                     Delivery: {o.deliveryId ? "assigned" : "not assigned"}
@@ -425,6 +457,50 @@ export default function AdminDashboardPage() {
             {orders.length > 10 && (
               <p className="text-[11px] text-gray-500">
                 Showing first 10. (MVP) — baad mein full table add kar denge.
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm text-xs">
+        <div className="text-sm font-medium">Users & roles</div>
+        {users.length === 0 ? (
+          <p className="text-[11px] text-gray-600">
+            Abhi tak koi users data load nahi hua ya users collection khaali hai.
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {users.slice(0, 8).map((u) => (
+              <div
+                key={u.id}
+                className="flex items-center justify-between rounded-lg bg-cream/50 px-3 py-1.5"
+              >
+                <div className="text-[11px]">
+                  <div className="font-medium text-charcoal">
+                    {u.email ?? u.id.slice(-6)}
+                  </div>
+                  <div className="text-[10px] text-gray-500">
+                    Created:{" "}
+                    {u.createdAt
+                      ? new Date(u.createdAt).toLocaleDateString()
+                      : "n/a"}
+                    {" • "}
+                    Last login:{" "}
+                    {u.lastLoginAt
+                      ? new Date(u.lastLoginAt).toLocaleDateString()
+                      : "n/a"}
+                  </div>
+                </div>
+                <div className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold text-gray-700">
+                  {u.role ?? "customer"}
+                </div>
+              </div>
+            ))}
+            {users.length > 8 && (
+              <p className="text-[10px] text-gray-500">
+                Sirf pehle 8 users dikhaye gaye hain. Baad me full table add ki ja sakti
+                hai.
               </p>
             )}
           </div>

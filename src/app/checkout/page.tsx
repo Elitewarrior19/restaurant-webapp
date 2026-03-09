@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { addDoc, collection } from "firebase/firestore";
 import { Button } from "@/components/ui/Button";
@@ -14,6 +15,11 @@ type Location = {
   lng: number;
 };
 
+const DynamicMapPicker = dynamic(
+  () => import("@/components/maps/MapPicker").then((m) => m.MapPicker),
+  { ssr: false }
+);
+
 export default function CheckoutPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState<"delivery" | "payment" | "review">("delivery");
@@ -24,7 +30,9 @@ export default function CheckoutPage() {
   const [location, setLocation] = useState<Location | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "wallet" | "cod">("cod");
+  const [paymentMethod, setPaymentMethod] = useState<"jazzcash" | "easypaisa" | "cod">("cod");
+  const [paymentConfirmed, setPaymentConfirmed] = useState(true);
+  const [processingPayment, setProcessingPayment] = useState(false);
   const [tipAmount, setTipAmount] = useState(0);
   const [orderNotes, setOrderNotes] = useState("");
   const [placing, setPlacing] = useState(false);
@@ -72,6 +80,41 @@ export default function CheckoutPage() {
     );
   }
 
+  function handleSelectPayment(method: "jazzcash" | "easypaisa" | "cod") {
+    setPaymentMethod(method);
+    // COD ko online gateway ki zaroorat nahi, isliye confirm by default.
+    setPaymentConfirmed(method === "cod");
+  }
+
+  async function handleDemoPayment() {
+    if (paymentMethod === "cod") return;
+    setProcessingPayment(true);
+    try {
+      const res = await fetch("/api/payments/demo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          method: paymentMethod,
+          amount: finalTotal
+        })
+      });
+      if (!res.ok) {
+        throw new Error("Payment failed");
+      }
+      setPaymentConfirmed(true);
+      alert(
+        "Demo payment successful. Ye sirf testing hai, koi real paisa charge nahi hua."
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Payment demo fail ho gaya. Thori dair baad dobara try karein.");
+    } finally {
+      setProcessingPayment(false);
+    }
+  }
+
   async function handlePlaceOrder() {
     if (!user) {
       router.push("/login");
@@ -85,9 +128,14 @@ export default function CheckoutPage() {
       alert("Delivery address likhein ya current location use karein.");
       return;
     }
+    if (paymentMethod !== "cod" && !paymentConfirmed) {
+      alert("Pehele JazzCash / Easypaisa demo payment complete karein.");
+      return;
+    }
     setPlacing(true);
     try {
       const db = getDb();
+      const isCOD = paymentMethod === "cod";
       const order = {
         userId: user.uid,
         status: "received",
@@ -106,7 +154,9 @@ export default function CheckoutPage() {
         deliveryOption,
         scheduledTime: deliveryOption === "schedule" ? scheduledTime : null,
         paymentMethod,
-        isCOD: paymentMethod === "cod",
+        paymentProvider: paymentMethod,
+        isCOD,
+        paymentStatus: isCOD ? "pending_cod" : "paid_demo",
         deliveryType,
         deliveryAddress: deliveryType === "delivery" ? address.trim() : null,
         location: location ?? null,
@@ -198,7 +248,7 @@ export default function CheckoutPage() {
       </section>
 
       {deliveryType === "delivery" && (
-        <section className="space-y-2 rounded-2xl bg-white p-4 shadow-sm">
+        <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-xs font-medium text-gray-800">
               Delivery address
@@ -208,24 +258,27 @@ export default function CheckoutPage() {
               onClick={detectCurrentLocation}
               className="text-[11px] text-saffron underline-offset-2 hover:underline"
             >
-              Current location use karein
+              GPS se pin set karein
             </button>
           </div>
           <p className="text-[11px] text-gray-500">
-            Microcopy: &quot;Ghar ka address?&quot; / &quot;Office pe bhejna
-            hai?&quot;
+            Map par tap karke pin set karein, ya niche address manually likhein.
           </p>
+          <DynamicMapPicker
+            value={location}
+            onChange={(loc) => setLocation(loc)}
+            onAddressChange={(addr) => setAddress(addr)}
+          />
           <textarea
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             rows={3}
             className="mt-2 w-full rounded-xl border border-gray-200 bg-cream/40 p-2 text-xs outline-none focus:border-deepGreen focus:ring-1 focus:ring-deepGreen/40"
-            placeholder="Ghar ka address yahan likhein..."
+            placeholder="Flat / floor / landmark yahan likhein..."
           />
           {location && (
             <p className="text-[11px] text-gray-500">
-              Location saved: {location.lat.toFixed(4)},{" "}
-              {location.lng.toFixed(4)}
+              Map pin: {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
             </p>
           )}
           {locating && (
@@ -260,21 +313,44 @@ export default function CheckoutPage() {
           <section className="space-y-2 rounded-2xl bg-white p-4 shadow-sm">
             <div className="text-xs font-medium text-gray-800">Payment options</div>
             <div className="grid grid-cols-3 gap-2">
-              {(["card", "wallet", "cod"] as const).map((method) => (
+              {(["jazzcash", "easypaisa", "cod"] as const).map((method) => (
                 <button
                   key={method}
                   type="button"
-                  onClick={() => setPaymentMethod(method)}
+                  onClick={() => handleSelectPayment(method)}
                   className={`rounded-full border px-3 py-2 text-xs font-medium transition ${
                     paymentMethod === method
                       ? "border-saffron bg-saffron text-white"
                       : "border-gray-200 bg-white text-gray-700"
                   }`}
                 >
-                  {method === "cod" ? "COD" : method.charAt(0).toUpperCase() + method.slice(1)}
+                  {method === "cod"
+                    ? "Cash on delivery"
+                    : method === "jazzcash"
+                    ? "JazzCash"
+                    : "Easypaisa"}
                 </button>
               ))}
             </div>
+            {paymentMethod !== "cod" && (
+              <div className="mt-3 space-y-1 rounded-xl bg-cream/60 p-3 text-[11px] text-gray-700">
+                <p className="font-medium">
+                  JazzCash / Easypaisa demo mode (testing only)
+                </p>
+                <p>
+                  Abhi ye demo integration hai – button press karne se sirf Firestore me
+                  payment status update hoga, koi real paisa charge nahi hoga.
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-1"
+                  disabled={processingPayment}
+                  onClick={handleDemoPayment}
+                >
+                  {processingPayment ? "Processing..." : "Demo payment complete karein"}
+                </Button>
+              </div>
+            )}
           </section>
 
           {/* Tip Slider */}

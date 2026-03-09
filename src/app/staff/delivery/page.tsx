@@ -9,11 +9,17 @@ import {
   doc
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { getDb } from "@/lib/firebase";
 import { useAuth, useRequireRole } from "@/lib/auth-context";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+
+type Location = {
+  lat: number;
+  lng: number;
+};
 
 type Order = {
   id: string;
@@ -22,7 +28,14 @@ type Order = {
   deliveryAddress?: string;
   totalAmount?: number;
   isCOD?: boolean;
+  location?: Location | null;
+  riderLocation?: Location | null;
 };
+
+const DynamicOrderMap = dynamic(
+  () => import("@/components/maps/OrderMap").then((m) => m.OrderMap),
+  { ssr: false }
+);
 
 export default function DeliveryDashboardPage() {
   const { user } = useAuth();
@@ -81,6 +94,30 @@ export default function DeliveryDashboardPage() {
     return <p className="text-xs text-gray-600">Access check ho raha hai...</p>;
   }
 
+  async function shareRiderLocation(orderId: string) {
+    if (!("geolocation" in navigator)) {
+      alert("Aapka browser GPS support nahi karta.");
+      return;
+    }
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 8000
+        });
+      });
+      const { latitude, longitude } = position.coords;
+      const ref = doc(db, "orders", orderId);
+      await updateDoc(ref, {
+        riderLocation: { lat: latitude, lng: longitude },
+        riderLocationUpdatedAt: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Location share nahi ho saki. GPS permission allow karein.");
+    }
+  }
+
   async function updateStatus(orderId: string, status: string) {
     try {
       const ref = doc(db, "orders", orderId);
@@ -127,6 +164,7 @@ export default function DeliveryDashboardPage() {
             <p className="text-[11px] text-gray-700">
               {order.deliveryAddress ?? "Address not set yet"}
             </p>
+            <DynamicOrderMap customerLocation={order.location} />
             <div className="flex items-center justify-between text-[11px] text-gray-600">
               <span>Total: ₹{order.totalAmount ?? 0}</span>
               <span>{order.isCOD ? "COD" : "Prepaid"}</span>
@@ -156,6 +194,10 @@ export default function DeliveryDashboardPage() {
             <p className="text-[11px] text-gray-700">
               {order.deliveryAddress ?? "Address not set yet"}
             </p>
+            <DynamicOrderMap
+              customerLocation={order.location}
+              riderLocation={order.riderLocation}
+            />
             <div className="flex items-center justify-between text-[11px] text-gray-600">
               <span>Total: ₹{order.totalAmount ?? 0}</span>
               <span>{order.isCOD ? "COD" : "Prepaid"}</span>
@@ -182,16 +224,18 @@ export default function DeliveryDashboardPage() {
               >
                 Delivered
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => shareRiderLocation(order.id)}
+              >
+                Meri location share karein
+              </Button>
             </div>
             <div className="flex items-center justify-between pt-1 text-[11px] text-gray-600">
-              <a
-                href="https://maps.google.com"
-                target="_blank"
-                rel="noreferrer"
-                className="text-saffron underline"
-              >
-                Route maps kholen
-              </a>
+              <span className="text-[10px] text-gray-500">
+                Hara dot rider, blue pin customer location.
+              </span>
               {order.isCOD && (
                 <span className="rounded-full bg-cream px-2 py-1">
                   Cash collect karna yaad rakhein
